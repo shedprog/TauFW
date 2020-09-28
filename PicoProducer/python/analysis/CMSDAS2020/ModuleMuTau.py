@@ -137,6 +137,12 @@ class ModuleMuTau(Module):
     self.n_pvert           =   np.zeros(1,dtype='i')
     self.n_pileup          =   np.zeros(1,dtype='i')
 
+    # for HL variables based on puppimet
+    self.dphi_pmet       =  np.zeros(1,dtype='f')
+    self.real_Z_pt_pmet  =  np.zeros(1,dtype='f')
+    self.mt_pmet         =  np.zeros(1,dtype='f')
+    self.miss_Pdz_pmet    =  np.zeros(1,dtype='f')
+
     self.tree.Branch('vis_Z_pt',  self.vis_Z_pt,   'vis_Z_pt/F')
     self.tree.Branch('real_Z_pt', self.real_Z_pt,  'real_Z_pt/F')
     self.tree.Branch('dphi',      self.dphi,       'dphi/F')
@@ -147,6 +153,11 @@ class ModuleMuTau(Module):
     self.tree.Branch('puRho',     self.puRho,      'puRho/F')
     self.tree.Branch('n_pvert',   self.n_pvert,    'n_pvert/I')
     self.tree.Branch('n_pileup',  self.n_pileup,   'n_pileup/I')
+
+    self.tree.Branch('dphi_pmet',      self.dphi_pmet,      'dphi_pmet/F')
+    self.tree.Branch('real_Z_pt_pmet', self.real_Z_pt_pmet, 'real_Z_pt_pmet/F')
+    self.tree.Branch('mt_pmet',        self.mt_pmet,        'mt_pmet/F')
+    self.tree.Branch('miss_Pdz_pmet',   self.miss_Pdz_pmet,   'miss_Pdz_pmet/F')
 
   def endJob(self):
     """Wrap up after running on all events and files"""
@@ -317,30 +328,42 @@ class ModuleMuTau(Module):
     self.puppiMET_sumEt[0]      = puppimet.sumEt
 
     # New VARIABLES
-    self.dphi[0]         = Math.VectorUtil.DeltaPhi(muon.p4(),puppimet.p4())
+    self.dphi[0]         = Math.VectorUtil.DeltaPhi(muon.p4(),met.p4())
+    self.dphi_pmet[0]         = Math.VectorUtil.DeltaPhi(muon.p4(),puppimet.p4())
     # self.dphi      = muon.phi - puppimet.phi
-    pi = math.pi
-    if self.dphi[0] < -1*pi: self.dphi[0]+=2*pi
-    elif self.dphi[0] > pi: self.dphi[0]-=2*pi
+
+    if self.dphi[0] < -1*math.pi: self.dphi[0]+=2*math.pi
+    elif self.dphi[0] > math.pi: self.dphi[0]-=2*math.pi
+
+    if self.dphi_pmet[0] < -1*math.pi: self.dphi_pmet[0]+=2*math.pi
+    elif self.dphi_pmet[0] > math.pi: self.dphi_pmet[0]-=2*math.pi
 
     self.vis_Z_pt[0]  = (muon.p4()+tau.p4()).Pt()
-    self.real_Z_pt[0] = (muon.p4()+tau.p4()+puppimet.p4()).Pt()
-    self.mt[0]        = math.sqrt( 2*muon.pt*puppimet.sumEt*(1 - math.cos(self.dphi[0])) )
+
+    self.real_Z_pt[0] = (muon.p4()+tau.p4()+met.p4()).Pt()
+    self.real_Z_pt_pmet[0] = (muon.p4()+tau.p4()+puppimet.p4()).Pt()
+
+    self.mt[0]        = math.sqrt( 2*muon.pt*met.sumEt*(1 - math.cos(self.dphi[0])) )
+    self.mt_pmet[0]        = math.sqrt( 2*muon.pt*puppimet.sumEt*(1 - math.cos(self.dphi_pmet[0])) )
+
     middle         = (muon.phi + tau.phi)/2.0
-    self.miss_Pdz[0]  = puppimet.pt * math.cos(middle - puppimet.phi)
+
+    self.miss_Pdz[0]  = met.pt * math.cos(middle - met.phi)
+    self.miss_Pdz_pmet[0]  = puppimet.pt * math.cos(middle - puppimet.phi)
+
     self.vis_Pdz[0]   = muon.pt*math.cos(middle - muon.phi) + tau.pt*math.cos(middle - muon.phi)
+
     self.deltaR[0]    = muon.DeltaR(tau)
     self.puRho[0]    = event.fixedGridRhoFastjetAll
     self.n_pvert[0]   = event.PV_npvs
-    self.n_pileup[0]
 
     if self.ismc:
-      self.genmatch_1[0]  = muon.genPartFlav # in case of muons: 1 == prompt muon, 15 == muon from tau decay, also other values available for muons from jets
-      self.genmatch_2[0]  = tau.genPartFlav # in case of taus: 0 == unmatched (corresponds then to jet),
+        self.n_pileup[0]   = event.Pileup_nPU
+        self.genmatch_1[0]  = muon.genPartFlav # in case of muons: 1 == prompt muon, 15 == muon from tau decay, also other values available for muons from jets
+        self.genmatch_2[0]  = tau.genPartFlav # in case of taus: 0 == unmatched (corresponds then to jet),
                                             #                  1 == prompt electron, 2 == prompt muon, 3 == electron from tau decay,
                                             #                  4 == muon from tau decay, 5 == hadronic tau decay
-      self.genWeight[0] = event.genWeight
-      self.n_pileup[0]   = event.Pileup_nPU
+        self.genWeight[0] = event.genWeight
 
     self.tree.Fill()
 
