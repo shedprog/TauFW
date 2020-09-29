@@ -21,15 +21,15 @@ def getsampleset(channel,era,**kwargs):
     "WW_TuneCP5_13TeV-pythia8" : 0.0, # <-- no adaption of effective events needed
     "WZ_TuneCP5_13TeV-pythia8" : 0.0, # <-- no adaption of effective events needed
     "ZZ_TuneCP5_13TeV-pythia8" : 0.0, # <-- no adaption of effective events needed
-    "ST_t-channel_top" : 0.033, 
-    "ST_t-channel_antitop" : 0.031, 
-    "ST_tW_top" : 0.002, 
-    "ST_tW_antitop" : 0.002, 
+    "ST_t-channel_top" : 0.033,
+    "ST_t-channel_antitop" : 0.031,
+    "ST_tW_top" : 0.002,
+    "ST_tW_antitop" : 0.002,
     "TTTo2L2Nu" : 0.004,
     "TTToHadronic" : 0.004,
     "TTToSemiLeptonic" : 0.004,
   }
-  
+
   # SM BACKGROUND MC SAMPLES
   expsamples = [ # table of MC samples to be converted to Sample objects
     # GROUP NAME                     TITLE                 XSEC [pb]      effective NEVENTS = simulated NEVENTS * ( 1  - 2 * negative fraction)
@@ -56,23 +56,23 @@ def getsampleset(channel,era,**kwargs):
     ( 'ST', "ST_tW_antitop",         "ST atW",             35.85,  {"nevts" : 7623000 * (1.0 - 2 * negative_fractions["ST_tW_antitop"])  }),
 
     # Cross-sections: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/TtbarNNLO#Top_quark_pair_cross_sections_at, m_top = 172.5 GeV + PDG for W boson decays
-    ( 'TT', "TTTo2L2Nu",             "ttbar 2l2#nu",       831.76*(3*0.1086)**2,         {"nevts" : 64310000 * (1.0 - 2 * negative_fractions["TTTo2L2Nu"]) }), 
+    ( 'TT', "TTTo2L2Nu",             "ttbar 2l2#nu",       831.76*(3*0.1086)**2,         {"nevts" : 64310000 * (1.0 - 2 * negative_fractions["TTTo2L2Nu"]) }),
     ( 'TT', "TTToHadronic",          "ttbar hadronic",     831.76*2*(3*0.1086)*(0.6741), {"nevts" : 199524000 * (1.0 - 2 * negative_fractions["TTToHadronic"])}),
     ( 'TT', "TTToSemiLeptonic",      "ttbar semileptonic", 831.76*(0.6741)**2,           {"nevts" : 199925998 * (1.0 - 2 * negative_fractions["TTToSemiLeptonic"])}),
   ]
-  
+
   # OBSERVED DATA SAMPLES
   if 'mutau'  in channel: dataset = "SingleMuon_Run%d?"%year
   else:
     LOG.throw(IOError,"Did not recognize channel %r!"%(channel))
   datasample = ('Data',dataset) # Data for chosen channel
-  
+
   # SAMPLE SET
   # TODO section 5: This weight needs to be extended with correction weights common to all simulated samples (MC)
   weight = "genWeight/abs(genWeight)" # normalize weight, since sometimes the generator cross-section is contained in it.
   kwargs.setdefault('weight',weight)  # common weight for MC
   sampleset = _getsampleset(datasample,expsamples,channel=channel,era=era,**kwargs)
-  
+
   # JOIN
   # Note: titles are set via STYLE.sample_titles
   sampleset.join('WW', 'WZ', 'ZZ', name='VV'  ) # Diboson
@@ -80,8 +80,8 @@ def getsampleset(channel,era,**kwargs):
 
   sampleset.join('TT', name='TT' ) # ttbar
   sampleset.join('ST', name='ST' ) # single top
-  sampleset.join('ST','TT', name='Top' ) #ttbar & single top 
-  
+  sampleset.join('ST','TT', name='Top' ) #ttbar & single top
+
   # SPLIT
   # TODO section 5: Check the generator matching for various samples in the flat n-tuples.
   # Is it justified to require only the tauh candidate to match to generator level hadronic tau to declare the full process with Z->tautau in mutau final state?
@@ -91,7 +91,7 @@ def getsampleset(channel,era,**kwargs):
   sampleset.split('DY', [('ZTT',GMR),('ZL',GMO)])
   sampleset.split('Top',[('TopT',GMR),('TopJ',GMO)])
   sampleset.split('EWK',[('EWKT',GMR),('EWKJ',GMO)])
- 
+
   if table:
     sampleset.printtable(merged=True,split=True)
   return sampleset
@@ -100,22 +100,92 @@ def getsampleset(channel,era,**kwargs):
 def plot(sampleset,channel,parallel=True,tag="",outdir="plots",histdir="",era=""):
   """Test plotting of SampleSet class for data/MC comparison."""
   LOG.header("plot")
-  
+
   # SELECTIONS
   inclusive = "(q_1*q_2<0)"
   inclusive = inclusive.replace(" ","")
-  inclusive_cr_qcd = inclusive.replace("q_1*q_2<0","q_1*q_2>0") # inverting the opposite-sign requirement of the mutau pair into a same-sign requirment
+  # inclusive_cr_qcd = inclusive.replace("q_1*q_2<0","q_1*q_2>0") # inverting the opposite-sign requirement of the mutau pair into a same-sign requirment
+  general_cuts = "(pt_1>26.0)&&(pt_2>20.0)&&(eta_1>-2.1)&&(eta_1<2.1)&&(eta_2>-2.3)&&(eta_2<2.3)"
+  isolation = "(iso_1<0.15)"
+  mt_cut = "(mt<40.0)"
+  mt_pmet_cut = "(mt_pmet<40.0)"
+  topo_cut = "(miss_Pdz-0.85*vis_Pdz>-20)"
+  isdDT = "(iso_2>0.8)"
+  deeptau ="(anti_e_2>=2)&&(anti_mu_2>=8)&&(id_2>=16)"
+
+  final = general_cuts + "&&" + isolation + "&&" + mt_cut + "&&" + mt_pmet_cut + "&&" + topo_cut + "&&" +  deeptau + "&&" + isdDT
+
   selections = [
-    Sel('inclusive',inclusive),
-    Sel('inclusive_cr_qcd',inclusive_cr_qcd),
+    Sel('nominal',inclusive),
+    Sel('kinematic sel.',general_cuts),
+    Sel('isolation',isolation),
+    Sel('mt<40.0',mt_cut),
+    Sel('mtPmet<40.0',mt_pmet_cut),
+    Sel('TopologicalDis',topo_cut),
+    Sel('DeepTau',deeptau),
+    Sel('isoDeepTau',isdDT),
+    Sel('FinalSelection',final),
+
+
+    # Sel('inclusive_cr_qcd',inclusive_cr_qcd),
   ]
-  
+
   # VARIABLES
   # TODO section 5: extend with other variables, which are available in the flat n-tuples
   variables = [
      Var('m_vis',  40,  0, 200),
+
+     # For nominal cuts
+     # Var('miss_Pdz - 0.85*vis_Pdz', 40, -200, 150),
+     # Var('pt_1', 40, 10, 100),
+     # Var('eta_1', 40, -3, 3),
+     # Var('iso_1', 40, -0.1, 0.5),
+     # # Var('decayMode_1', 30, 0, 30),
+     #
+     # Var('pt_2', 40, 10, 100),
+     # Var('eta_2', 40, -3, 3),
+     # Var('anti_e_2', 40, -10, 10),
+     # Var('anti_mu_2', 40, -10, 10),
+     # Var('iso_2', 40,  0.0, 1.2),
+     # Var('decayMode_2', 30, 0, 30),
+     #
+     # Var('genWeight', 40, -1, 2),
+     #
+     # Var('n_jet',10, 0, 10),
+     # Var('jet1_pt', 40, 10, 100),
+     # Var('jet1_eta',40, -3, 3),
+     # Var('jet2_pt', 40, 10, 100),
+     # Var('jet2_eta', 40, -3, 3),
+     #
+     # Var('n_bjet', 10, 0, 10),
+     # Var('bjet1_pt', 40, 10, 100),
+     # Var('bjet1_eta',40, -3, 3),
+     # Var('bjet2_pt', 40, 10, 100),
+     # Var('bjet2_eta', 40, -3, 3),
+     #
+     # Var('rawMET_phi', 40, -3.5, 3.5),
+     # Var('rawMET_pt', 40, 0, 150),
+     # Var('rawMET_sumEt', 40, 30, 3000),
+     # Var('puppiMET_phi', 40, -3.5, 3.5),
+     # Var('puppiMET_pt', 40, 0, 150),
+     # Var('puppiMET_sumEt', 40, 30, 500),
+     #
+     # Var('vis_Z_pt',40, 0, 200),
+     # Var('real_Z_pt',40, 0, 200),
+     # Var('real_Z_pt_pmet',40, 0, 200),
+     #
+     # Var('dphi',40, -3.5, 3.5),
+     # Var('dphi_pmet',40, -3.5, 3.5),
+     #
+     # Var('mt', 40,  0, 250),
+     # Var('mt_pmet', 40,  0, 250),
+     #
+     # Var('deltaR', 40, 0, 10.0),
+     # Var('puRho', 40,  2, 50),
+     # Var('n_pvert', 50,  0, 50),
+     # Var('n_pileup', 10,  0, 10),
   ]
-  
+
   # PLOT and HIST
   outdir   = ensuredir(repkey(outdir,CHANNEL=channel,ERA=era))
   histdir  = ensuredir(repkey(histdir,CHANNEL=channel,ERA=era))
@@ -123,7 +193,7 @@ def plot(sampleset,channel,parallel=True,tag="",outdir="plots",histdir="",era=""
   exts     = ['png','pdf']
   for selection in selections:
     outhists.mkdir(selection.filename)
-    stacks = sampleset.getstack(variables,selection,method='QCD_OSSS',scale=1.1,parallel=parallel) # the 'scale' keyword argument - chosen as 1.1 for mutau - 
+    stacks = sampleset.getstack(variables,selection,method='QCD_OSSS',scale=1.1,parallel=parallel) # the 'scale' keyword argument - chosen as 1.1 for mutau -
                                                                                                    # is an extrapolation factor for the QCD shape from the same-sign
                                                                                                    # to the opposite-sign region
     fname  = "%s/$VAR_%s-%s-%s$TAG"%(outdir,channel,selection.filename,era)
@@ -131,6 +201,7 @@ def plot(sampleset,channel,parallel=True,tag="",outdir="plots",histdir="",era=""
     for stack, variable in stacks.iteritems():
       outhists.cd(selection.filename)
       for h in stack.hists:
+        print("-----",h.Integral())
         h.Write(h.GetName().replace("QCD_","QCD"),R.TH1.kOverwrite)
       stack.draw()
       stack.drawlegend(x1=0.6,x2=0.95,y1=0.35,y2=0.95)
@@ -138,7 +209,7 @@ def plot(sampleset,channel,parallel=True,tag="",outdir="plots",histdir="",era=""
       stack.saveas(fname,ext=exts,tag=tag)
       stack.close()
   outhists.Close()
-  
+
 
 def main(args):
   channel = args.channel
@@ -152,7 +223,7 @@ def main(args):
   setera(era) # set era for plot style and lumi-xsec normalization
   sampleset = getsampleset(channel,era,file=fpattern,tag=tag,table=True)
   plot(sampleset,channel,parallel=parallel,tag=tag,outdir=outdir,histdir=histdir,era=era)
-  
+
 
 if __name__ == "__main__":
   import sys
@@ -175,6 +246,3 @@ if __name__ == "__main__":
   PLOG.verbosity = args.verbosity
   main(args)
   print "\n>>> Done."
-  
-
-
