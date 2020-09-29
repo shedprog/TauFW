@@ -159,6 +159,14 @@ class ModuleMuTau(Module):
     self.tree.Branch('mt_pmet',        self.mt_pmet,        'mt_pmet/F')
     self.tree.Branch('miss_Pdz_pmet',   self.miss_Pdz_pmet,   'miss_Pdz_pmet/F')
 
+    # Deep Tau
+    # self.tau_idDeepTau2017v2p1VSe   = np.zeros(1,dtype='i')
+    # self.tau_idDeepTau2017v2p1VSmu  = np.zeros(1,dtype='i')
+    # self.tau_idDeepTau2017v2p1VSjet = np.zeros(1,dtype='i')
+    # self.tree.Branch('tau_idDeepTau2017v2p1VSe',    self.tau_idDeepTau2017v2p1VSe   , 'tau_idDeepTau2017v2p1VSe/I')
+    # self.tree.Branch('tau_idDeepTau2017v2p1VSmu',   self.tau_idDeepTau2017v2p1VSmu  , 'tau_idDeepTau2017v2p1VSmu/I')
+    # self.tree.Branch('tau_idDeepTau2017v2p1VSjet',  self.tau_idDeepTau2017v2p1VSjet , 'tau_idDeepTau2017v2p1VSjet/I')
+
   def endJob(self):
     """Wrap up after running on all events and files"""
     self.outfile.Write()
@@ -297,6 +305,9 @@ class ModuleMuTau(Module):
     self.m_vis[0]       = (muon.p4()+tau.p4()).M()
 
     # Additional variables
+    # self.tau_idDeepTau2017v2p1VSe   = tau.idDeepTau2017v2p1VSe
+    # self.tau_idDeepTau2017v2p1VSmu  = tau.idDeepTau2017v2p1VSmu
+    # self.tau_idDeepTau2017v2p1VSjet = tau.idDeepTau2017v2p1VSjet
 
     #Jets
     self.n_jet[0]          = len(s_pu_jets)
@@ -330,11 +341,9 @@ class ModuleMuTau(Module):
     # New VARIABLES
     self.dphi[0]         = Math.VectorUtil.DeltaPhi(muon.p4(),met.p4())
     self.dphi_pmet[0]         = Math.VectorUtil.DeltaPhi(muon.p4(),puppimet.p4())
-    # self.dphi      = muon.phi - puppimet.phi
 
     if self.dphi[0] < -1*math.pi: self.dphi[0]+=2*math.pi
     elif self.dphi[0] > math.pi: self.dphi[0]-=2*math.pi
-
     if self.dphi_pmet[0] < -1*math.pi: self.dphi_pmet[0]+=2*math.pi
     elif self.dphi_pmet[0] > math.pi: self.dphi_pmet[0]-=2*math.pi
 
@@ -343,8 +352,8 @@ class ModuleMuTau(Module):
     self.real_Z_pt[0] = (muon.p4()+tau.p4()+met.p4()).Pt()
     self.real_Z_pt_pmet[0] = (muon.p4()+tau.p4()+puppimet.p4()).Pt()
 
-    self.mt[0]        = math.sqrt( 2*muon.pt*met.sumEt*(1 - math.cos(self.dphi[0])) )
-    self.mt_pmet[0]        = math.sqrt( 2*muon.pt*puppimet.sumEt*(1 - math.cos(self.dphi_pmet[0])) )
+    self.mt[0]        = math.sqrt( 2*muon.pt*met.pt*(1 - math.cos(self.dphi[0])) )
+    self.mt_pmet[0]        = math.sqrt( 2*muon.pt*puppimet.pt*(1 - math.cos(self.dphi_pmet[0])) )
 
     middle         = (muon.phi + tau.phi)/2.0
 
